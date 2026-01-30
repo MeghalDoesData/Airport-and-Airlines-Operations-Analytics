@@ -1,18 +1,27 @@
-name: Upload Glue Scripts to S3
+name: Glue Deploy Pipeline
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "glue-scripts/**"
+      - "terraform/**"
 
 jobs:
-  upload-scripts:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # -----------------------------
+      # 1. Checkout code
+      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------
+      # 2. Configure AWS credentials
+      # -----------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -20,6 +29,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # -----------------------------
+      # 3. Upload Glue scripts to S3
+      # -----------------------------
       - name: Upload Glue scripts to S3
         run: |
           aws s3 sync glue-scripts/ s3://amzn-s3-finalproject-curated-v1/scripts/
+
+      # -----------------------------
+      # 4. Terraform (optional – already used earlier)
+      # Enable only if you want infra changes from GitHub
+      # -----------------------------
+      # - name: Terraform Init
+      #   working-directory: terraform
+      #   run: terraform init
+
+      # - name: Terraform Apply
+      #   working-directory: terraform
+      #   run: terraform apply -auto-approve
