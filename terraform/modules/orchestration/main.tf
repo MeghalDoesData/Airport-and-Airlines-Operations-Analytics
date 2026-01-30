@@ -1,0 +1,88 @@
+resource "aws_sfn_state_machine" "airport_pipeline" {
+  name     = "airport-intelligence-etl-pipeline"
+  role_arn = aws_iam_role.step_functions_role.arn
+
+  definition = jsonencode({
+    Comment = "Airport Intelligence Glue ETL Pipeline"
+    StartAt = "ETL_Customers"
+    States = {
+
+      ETL_Customers = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          JobName = "ETL_Customers_v2"
+        }
+        Next = "ETL_Congestion"
+      }
+
+      ETL_Congestion = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          JobName = "ETL_CongestionScore_v2"
+        }
+        Next = "ETL_Operational_Health"
+      }
+
+      ETL_Operational_Health = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::glue:startJobRun.sync"
+        Parameters = {
+          JobName = "Kpi_2_v2"
+        }
+        Next = "Run_Crawlers"
+      }
+
+      Run_Crawlers = {
+        Type = "Parallel"
+        Branches = [
+
+          {
+            StartAt = "Customers_Crawler"
+            States = {
+              Customers_Crawler = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
+                Parameters = {
+                  Name = "Customers_table_crawler_v2"
+                }
+                End = true
+              }
+            }
+          },
+
+          {
+            StartAt = "Congestion_Crawler"
+            States = {
+              Congestion_Crawler = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
+                Parameters = {
+                  Name = "CongestionScore_Crawler_v2"
+                }
+                End = true
+              }
+            }
+          },
+
+          {
+            StartAt = "Kpi_Crawler"
+            States = {
+              Kpi_Crawler = {
+                Type     = "Task"
+                Resource = "arn:aws:states:::aws-sdk:glue:startCrawler"
+                Parameters = {
+                  Name = "Kpi_2_Crawler_v2"
+                }
+                End = true
+              }
+            }
+          }
+
+        ]
+        End = true
+      }
+    }
+  })
+}
