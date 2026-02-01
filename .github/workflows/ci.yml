@@ -1,36 +1,152 @@
-# This is a basic workflow to help you get started with Actions
+# Glue CI/CD Pipeline using GitHub Actions
 
-name: CI
+name: Glue CI/CD
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "develop" branch
+
+  # Trigger on push to develop branch
   push:
     branches: [ "develop" ]
+
+  # Trigger on PR to develop branch
   pull_request:
     branches: [ "develop" ]
 
-  # Allows you to run this workflow manually from the Actions tab
+  # Allow manual trigger
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+
+# Jobs
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+
+  glue-deploy:
+
+    # Runner
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    # Environment variables
+    env:
+      S3_BUCKET: airport-airline-operations-analytics-platform
+      SCRIPT_NAME: glue_job.py
+      SCRIPT_S3_KEY: scripts/glue_job.py
+      STACK_NAME: glue-cicd-stack
+      GLUE_JOB: FinalGlue
+
+    # Steps
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+
+      # Setup python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+
+      # Configure AWS
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+
+      # Upload Glue script
+      - name: Upload Glue script to S3
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          if [ ! -f "$SCRIPT_NAME" ]; then
+            echo "Glue script not found"
+            exit 1
+          fi
+
+          aws s3 cp $SCRIPT_NAME s3://$S3_BUCKET/$SCRIPT_S3_KEY
+
+
+      # Deploy CloudFormation
+      - name: Deploy Glue Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name $STACK_NAME \
+            --template-file template.yaml \
+            --parameter-overrides \
+              ScriptBucket=$S3_BUCKET \
+              ScriptKey=$SCRIPT_S3_KEY \
+              JobName=$GLUE_JOB \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+
+      # Start Glue job
+      - name: Start Glue Job
+        id: start_job
+        run: |
+          JOB_RUN_ID=$(aws glue start-job-run \
+            --job-name $GLUE_JOB \
+            --query JobRunId \
+            --output text)
+
+          echo "JOB_RUN_ID=$JOB_RUN_ID" >> $GITHUB_ENV
+          echo "Started job: $JOB_RUN_ID"
+
+
+      # Wait for Glue job
+      - name: Wait for Glue Job Completion
+        run: |
+          for i in {1..60}; do
+
+            STATUS=$(aws glue get-job-run \
+              --job-name $GLUE_JOB \
+              --run-id $JOB_RUN_ID \
+              --query JobRun.JobRunState \
+              --output text)
+
+            echo "Status: $STATUS"
+
+            if [ "$STATUS" = "SUCCEEDED" ]; then
+              exit 0
+            fi
+
+            if [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "STOPPED" ]; then
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "Glue job timeout"
+          exit 1
+
+
+      # Run Airline crawler
+      - name: Run Airline Crawler
+        run: |
+          aws glue start-crawler --name airline || true
+
+          while true; do
+            STATE=$(aws glue get-crawler --name airline --query 'Crawler.State' --output text)
+            if [ "$STATE" = "READY" ]; then break; fi
+            sleep 20
+          done
+
+
+      # Run Customers crawler
+      - name: Run Customers Crawler
+        run: |
+          aws glue start-crawler --name customers || true
+
+          while true; do
+            STATE=$(aws glue get-crawler --name customers --query 'Crawler.State' --output text)
+            if [ "$STATE" = "READY" ]; then break; fi
+            sleep 20
+          done
+
+
+      # Final success step
+      - name: Pipeline Success
+        run: echo "Glue pipeline completed successfully"
