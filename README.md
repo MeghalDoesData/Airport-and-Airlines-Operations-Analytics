@@ -1,149 +1,161 @@
-✈️ Airport Intelligence System Using Cloud-Based Big Data Analytics
-________________________________________________________________________________________________________________________________
+# 🚀 AWS Glue CI/CD Pipeline (CloudFormation + Python SDK)
+
+## 📌 Project Overview
+
+This project implements a complete **CI/CD pipeline for AWS Glue** using **GitHub Actions**.  
+The pipeline automates deployment, execution, and monitoring of Glue Jobs and Glue Crawlers.
+
+Infrastructure is implemented using:
+- **CloudFormation (YAML)**
+- **Python SDK (boto3)**
+
+---
 
-📌 Introduction
+## 🏗️ End-to-End Flow
 
-The aviation industry generates massive volumes of operational and weather-related data every day. Flight delays have a significant impact on passenger satisfaction, airline operating costs, airport congestion, and overall system efficiency. Traditional data processing systems struggle to handle the scale, velocity, and complexity of this data, making it difficult to derive timely and actionable insights.
+GitHub Push (main)
+|
+v
+GitHub Actions CI/CD
+|
+v
+Upload Glue Script to S3
+|
+v
+Deploy Glue Job (CloudFormation)
+|
+v
+Run Glue Job (Wait until SUCCESS)
+|
+v
+Run Airline Crawler (Wait + Validate)
+|
+v
+Run Customers Crawler (Wait + Validate)
+|
+v
+Glue Data Catalog Tables
+|
+v
+Amazon Athena
 
-With advancements in Cloud Computing and Big Data analytics, large-scale flight operations data can now be processed and analyzed efficiently. This project proposes the development of a Cloud-based Airport Intelligence System that leverages Big Data technologies and machine learning techniques to analyze, predict, and explain flight delays. The system is designed to support data-driven decision-making for airlines and airport authorities.
+---
 
-________________________________________________________________________________________________________________________________
+## 📁 Repository Structure
+.
+├── .github/workflows/
+│ └── ci.yml # GitHub Actions CI/CD pipeline
+│
+├── glue_job.py # AWS Glue ETL job script
+├── template.yaml # Glue Job CloudFormation template
+├── crawler-template.yaml # Glue Crawlers CloudFormation template
+├── deployment.py # Python SDK (boto3) deployment script
+├── README.md # Project documentation
 
-❗ Problem Statement
 
-Flight delays occur due to a complex interaction of multiple factors, including:
+---
 
-  Operational inefficiencies
+## ⚙️ CI/CD Pipeline Details
 
-  Airport congestion
+The pipeline is triggered on every push to the **main** branch.
 
-  Route characteristics
+### Pipeline Steps
 
-  Airline performance variability
+1. Checkout repository
+2. Configure AWS credentials
+3. Upload Glue ETL script to S3
+4. Deploy Glue Job using CloudFormation
+5. Trigger Glue Job and wait until it **SUCCEEDS**
+6. Run **Airline** Glue Crawler
+7. Validate Airline crawler execution
+8. Run **Customers** Glue Crawler
+9. Validate Customers crawler execution
+10. Mark pipeline success
 
-  Weather conditions
+Pipeline **fails automatically** if:
+- Glue Job fails or stops
+- Any crawler fails
 
-While airlines collect extensive delay-related data, they often lack integrated analytical systems capable of:
+---
 
-    Predicting delays in advance
+## 🧪 Glue Job Execution Logic
 
-    Identifying root causes of delays
+- Glue Job is triggered once per pipeline run
+- Pipeline continuously polls job status
+- Job must reach `SUCCEEDED`
+- Prevents concurrent execution issues
 
-    Quantifying airport congestion
+---
 
-    Evaluating weather sensitivity
+## 🗂️ Glue Crawlers Execution Strategy
 
-    Benchmarking airline reliability
+Crawlers are executed **one by one** (not parallel):
 
-    Profiling route-level delay risks
+1. Airline crawler
+2. Customers crawler
 
-As a result, operational decisions remain largely reactive rather than proactive.
+For each crawler:
+- Trigger crawler
+- Wait until crawler state becomes `READY`
+- Validate last crawl status
+- Pipeline fails if status is `FAILED`
 
-________________________________________________________________________________________________________________________________
+---
 
-🎯 Project Objectives
+## 🗃️ S3 Data Locations
+s3://airport-airline-operations-analytics-platform/silver/airline/
+s3://airport-airline-operations-analytics-platform/silver/customers/
 
-The key objectives of this project are:
 
-Design a scalable cloud-based Big Data analytics pipeline for aviation data
+Glue Crawlers scan these paths and create tables.
 
-Predict flight delays using operational and weather-related features
+---
 
-Decompose total delays into ground, air, arrival, and weather-related components
+## 🧠 Infrastructure as Code Approach
 
-Develop an airport congestion and efficiency scoring system
+### 1️⃣ CloudFormation (YAML)
+- `template.yaml` provisions Glue Job
+- `crawler-template.yaml` provisions Glue Crawlers
+- Declarative and repeatable infrastructure
 
-Analyze weather sensitivity and identify delay-triggering thresholds
+### 2️⃣ Python SDK (boto3)
+- `deployment.py` provisions infrastructure programmatically
+- Demonstrates SDK-based alternative to CloudFormation
+- Useful for dynamic or conditional deployments
 
-Benchmark airline reliability and operational consistency
+---
 
-Profile high-risk routes based on delay patterns, seasonality, and weather impact
+## 🔐 Prerequisites
 
-________________________________________________________________________________________________________________________________
+- AWS Account
+- IAM user with permissions:
+  - AWS Glue
+  - Amazon S3
+  - AWS CloudFormation
+- GitHub Secrets configured:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - `AWS_DEFAULT_REGION`
 
-🏗️ Proposed System Overview
+---
 
-The Airport Intelligence System integrates large-scale flight operations data with historical and real-time weather datasets using a cloud-based analytics architecture.
+## 📊 Final Output
 
-The system performs:
+- Glue Job executed successfully
+- Glue Crawlers completed sequentially
+- Glue Data Catalog tables created
+- Tables visible in Amazon Athena
 
-    Predictive modeling to forecast flight delays
+---
 
-    Analytical decomposition to identify root causes
+## ✅ Conclusion
 
-    KPI-based scoring to evaluate airports, airlines, and routes
+This project demonstrates a **production-grade AWS Glue CI/CD pipeline** with:
+- Sequential orchestration
+- Failure handling
+- CloudFormation-based IaC
+- Python SDK-based deployment
 
-________________________________________________________________________________________________________________________________
+---
 
-🔍 Key Analytical Modules
 
-Flight Delay Prediction using classification and regression models
-
-Root Cause Decomposition of delays into operational and environmental components
-
-Airport Congestion & Efficiency Scoring based on taxi times, delay frequency, and time-of-day patterns
-
-Weather Sensitivity Analysis to quantify the impact of wind, precipitation, and temperature
-
-Airline Reliability Benchmarking using punctuality, consistency, and seasonal performance metrics
-
-Route-Level Delay Risk Profiling to identify high-risk and weather-sensitive routes
-
-________________________________________________________________________________________________________________________________
-
-📊 Dataset
-
-The project uses a large-scale multi-modal aviation dataset consisting of millions of U.S. flight records. The dataset includes:
-
-    Flight operational details
-
-    Airport-level attributes
-
-    Weather-related parameters
-
-It is designed to support Big Data analytics and machine learning workflows for delay analysis at scale.
-
-________________________________________________________________________________________________________________________________
-
-🛠️ Technology Stack
-
-Cloud Platform:
-    Amazon Web Services (AWS) or Microsoft Azure
-
-Big Data Platform:
-    Databricks
-
-Distributed Processing: 
-    Apache Spark
-
-Storage:
-    Cloud Object Storage
-
-Programming & Querying: 
-    Python (PySpark) and Spark SQL
-
-________________________________________________________________________________________________________________________________
-
-✅ Expected Outcomes
-
-The system is expected to deliver:
-
-    Accurate advance prediction of flight delays
-
-    Clear identification of delay root causes
-
-    Objective airport congestion and efficiency rankings
-
-    Quantified insights into weather-driven disruptions
-
-    Fair and transparent airline performance benchmarks
-
-    Actionable route-level risk intelligence
-
-These insights enable airlines and airport authorities to optimize scheduling, resource allocation, hub planning, and overall operational strategies.
-
-________________________________________________________________________________________________________________________________
-
-🧾 Conclusion
-
-This project presents a comprehensive Cloud-based Airport Intelligence System that applies Big Data analytics and machine learning to aviation data. By transforming raw flight and weather data into actionable intelligence, the system enables proactive decision-making, improves operational efficiency, reduces costs, and enhances reliability across the aviation ecosystem.
