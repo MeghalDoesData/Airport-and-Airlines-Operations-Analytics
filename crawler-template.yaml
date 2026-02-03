@@ -2,21 +2,21 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Resources:
 
-  GlueDBAirline:
+  DB1:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: airline
 
-  GlueDBCustomers:
+  DB2:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: customers
 
-  CrawlerRole:
+  Role:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -29,21 +29,21 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
 
-  AirlineCrawler:
+  C1:
     Type: AWS::Glue::Crawler
     Properties:
       Name: airline
-      Role: !GetAtt CrawlerRole.Arn
+      Role: !GetAtt Role.Arn
       DatabaseName: airline
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/silver/airline/
 
-  CustomersCrawler:
+  C2:
     Type: AWS::Glue::Crawler
     Properties:
       Name: customers
-      Role: !GetAtt CrawlerRole.Arn
+      Role: !GetAtt Role.Arn
       DatabaseName: customers
       Targets:
         S3Targets:
