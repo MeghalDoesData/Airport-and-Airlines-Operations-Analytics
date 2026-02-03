@@ -23,6 +23,8 @@ jobs:
       KEY: scripts/glue_job.py
       STACK: glue-cicd-stack
       JOB: FinalGlue
+      CRAWLER1: airline
+      CRAWLER2: customers
 
     steps:
 
@@ -31,8 +33,7 @@ jobs:
       # -------------------
       - uses: actions/checkout@v4
 
-      - name: Show files
-        run: ls -R
+      - run: ls -R
 
 
       # -------------------
@@ -46,23 +47,22 @@ jobs:
 
 
       # -------------------
-      # Upload Glue script FIRST
+      # Upload Script
       # -------------------
       - name: Upload Glue Script
         run: |
-          test -f $SCRIPT || (echo "❌ glue_job.py missing" && exit 1)
+          test -f $SCRIPT || (echo "glue_job.py missing" && exit 1)
           aws s3 cp $SCRIPT s3://$BUCKET/$KEY
 
-      - name: Verify S3 Script
-        run: aws s3 ls s3://$BUCKET/$KEY
+      - run: aws s3 ls s3://$BUCKET/$KEY
 
 
       # -------------------
-      # Deploy / Update Stack
+      # Deploy Stack
       # -------------------
-      - name: Deploy CloudFormation
+      - name: Deploy CFN
         run: |
-          test -f template.yaml || (echo "❌ template.yaml missing" && exit 1)
+          test -f template.yaml || (echo "template.yaml missing" && exit 1)
 
           aws cloudformation deploy \
             --stack-name $STACK \
@@ -76,24 +76,22 @@ jobs:
 
 
       # -------------------
-      # Wait until Glue job exists
+      # Wait Job Exists
       # -------------------
       - name: Wait for Glue Job
         run: |
           for i in {1..20}; do
             if aws glue get-job --job-name $JOB >/dev/null 2>&1; then
-              echo "✅ Job exists"
+              echo "Job ready"
               exit 0
             fi
-            echo "Waiting for job..."
             sleep 15
           done
-          echo "❌ Job not created"
           exit 1
 
 
       # -------------------
-      # Force metadata refresh (fix missing metadata error)
+      # Refresh Metadata
       # -------------------
       - name: Refresh Job Metadata
         run: |
@@ -103,9 +101,9 @@ jobs:
 
 
       # -------------------
-      # Start Glue Job
+      # Start Glue
       # -------------------
-      - name: Start Job
+      - name: Start Glue Job
         run: |
           ID=$(aws glue start-job-run \
             --job-name $JOB \
@@ -113,13 +111,12 @@ jobs:
             --output text)
 
           echo "RUN_ID=$ID" >> $GITHUB_ENV
-          echo "Started: $ID"
 
 
       # -------------------
-      # Wait for completion
+      # Wait Glue Complete
       # -------------------
-      - name: Wait for Completion
+      - name: Wait Glue
         run: |
           for i in {1..40}; do
             S=$(aws glue get-job-run \
@@ -128,13 +125,55 @@ jobs:
               --query JobRun.JobRunState \
               --output text)
 
-            echo "Status: $S"
+            echo "Glue status: $S"
 
-            if [ "$S" = "SUCCEEDED" ]; then exit 0; fi
+            if [ "$S" = "SUCCEEDED" ]; then break; fi
             if [ "$S" = "FAILED" ] || [ "$S" = "STOPPED" ]; then exit 1; fi
 
             sleep 30
           done
 
-          echo "Timeout"
-          exit 1
+
+      # -------------------
+      # Run Crawler 1
+      # -------------------
+      - name: Run Airline Crawler
+        run: |
+          aws glue start-crawler --name $CRAWLER1 || true
+
+          while true; do
+            S=$(aws glue get-crawler \
+              --name $CRAWLER1 \
+              --query 'Crawler.State' \
+              --output text)
+
+            echo "Crawler airline: $S"
+            if [ "$S" = "READY" ]; then break; fi
+            sleep 20
+          done
+
+
+      # -------------------
+      # Run Crawler 2
+      # -------------------
+      - name: Run Customers Crawler
+        run: |
+          aws glue start-crawler --name $CRAWLER2 || true
+
+          while true; do
+            S=$(aws glue get-crawler \
+              --name $CRAWLER2 \
+              --query 'Crawler.State' \
+              --output text)
+
+            echo "Crawler customers: $S"
+            if [ "$S" = "READY" ]; then break; fi
+            sleep 20
+          done
+
+
+      # -------------------
+      # Done
+      # -------------------
+      - name: Success
+        run: echo "Glue + Crawlers completed"
