@@ -33,5 +33,4 @@ Resources:
         ScriptLocation: !Sub s3://${ScriptBucket}/${ScriptKey}
         PythonVersion: 3
       GlueVersion: "4.0"
-      MaxRetries: 0
       Timeout: 60
