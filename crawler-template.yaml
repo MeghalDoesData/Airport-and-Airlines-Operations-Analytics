@@ -2,19 +2,19 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Resources:
 
-  DB1:
+  DBAirline:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: airline
+        Name: airline_cicd
 
-  DB2:
+  DBCustomers:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: customers
+        Name: customers_cicd
 
   Role:
     Type: AWS::IAM::Role
@@ -29,22 +29,22 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
 
-  C1:
+  Crawler1:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: airline
+      Name: airline-cicd
       Role: !GetAtt Role.Arn
-      DatabaseName: airline
+      DatabaseName: airline_cicd
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/silver/airline/
 
-  C2:
+  Crawler2:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: customers
+      Name: customers-cicd
       Role: !GetAtt Role.Arn
-      DatabaseName: customers
+      DatabaseName: customers_cicd
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/silver/customers/
