@@ -14,7 +14,7 @@ jobs:
       SCRIPT_KEY: scripts/glue_job.py
       STACK: glue-cicd-stack
       CRAWLER_STACK: glue-crawler-stack
-      JOB: FinalGlueV2
+      JOB: FinalGlueCICD
       LAMBDA: airline-and-airport
 
     steps:
@@ -78,18 +78,18 @@ jobs:
 
       - name: Run airline crawler
         run: |
-          aws glue start-crawler --name airline || true
+          aws glue start-crawler --name airline-cicd || true
           while true; do
-            S=$(aws glue get-crawler --name airline --query 'Crawler.State' --output text)
+            S=$(aws glue get-crawler --name airline-cicd --query 'Crawler.State' --output text)
             [[ "$S" == "READY" ]] && break
             sleep 20
           done
 
       - name: Run customers crawler
         run: |
-          aws glue start-crawler --name customers || true
+          aws glue start-crawler --name customers-cicd || true
           while true; do
-            S=$(aws glue get-crawler --name customers --query 'Crawler.State' --output text)
+            S=$(aws glue get-crawler --name customers-cicd --query 'Crawler.State' --output text)
             [[ "$S" == "READY" ]] && break
             sleep 20
           done
