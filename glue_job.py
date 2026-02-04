@@ -215,7 +215,7 @@ gold_df = (
 gold_df.write \
     .mode("overwrite") \
     .parquet(
-        "s3://airport-airline-operations-analytics-platform/silver/airline_airport_operational_health/"
+        "s3://airport-airline-operations-analytics-platform/gold/airline_airport_operational_health/"
     )
 
 # ==================================================
