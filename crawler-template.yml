@@ -1,5 +1,6 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Crawlers for Gold Layer
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Gold Crawlers Stack
+
 
 Resources:
 
@@ -15,7 +16,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -29,33 +30,21 @@ Resources:
 
   AirlineCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
     Properties:
       Name: airline
       Role: !GetAtt CrawlerRole.Arn
       DatabaseName: analytics_db
-
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/gold/airline/
 
-      SchemaChangePolicy:
-        UpdateBehavior: UPDATE_IN_DATABASE
-        DeleteBehavior: DEPRECATE_IN_DATABASE
-
 
   CustomersCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
     Properties:
       Name: customers
       Role: !GetAtt CrawlerRole.Arn
       DatabaseName: analytics_db
-
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/gold/customers/
-
-      SchemaChangePolicy:
-        UpdateBehavior: UPDATE_IN_DATABASE
-        DeleteBehavior: DEPRECATE_IN_DATABASE
