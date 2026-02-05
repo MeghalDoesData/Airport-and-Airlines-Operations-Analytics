@@ -1,8 +1,8 @@
-name: Data Platform CI/CD
+name: CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
 
   workflow_dispatch:   # manual run allowed
 
