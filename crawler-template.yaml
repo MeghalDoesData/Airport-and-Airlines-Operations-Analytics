@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Glue Crawlers Stack (Gold Layer)
+Description: Glue Crawlers Stack (Gold Layer — Lambda Triggered)
 
 Resources:
 
-  # ---------- DATABASE ----------
+# ================= DATABASE =================
+
   AnalyticsDB:
     Type: AWS::Glue::Database
     Properties:
@@ -12,7 +13,8 @@ Resources:
         Name: analytics_db
 
 
-  # ---------- IAM ROLE (NO FIXED NAME) ----------
+# ================= IAM ROLE =================
+
   GlueCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -23,40 +25,89 @@ Resources:
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
+
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
 
-  # ---------- AIRLINE CRAWLER ----------
+# ================= AIRLINE CRAWLER =================
+
   AirlineCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
+    DependsOn:
+      - AnalyticsDB
+      - GlueCrawlerRole
+
     Properties:
       Name: airline
       Role: !GetAtt GlueCrawlerRole.Arn
       DatabaseName: analytics_db
       TablePrefix: airline_
+
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/gold/airline/
+
+      RecrawlPolicy:
+        RecrawlBehavior: CRAWL_EVERYTHING
+
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DEPRECATE_IN_DATABASE
 
+      Configuration: |
+        {
+          "Version": 1.0,
+          "Grouping": {
+            "TableLevelConfiguration": 3
+          }
+        }
 
-  # ---------- CUSTOMERS CRAWLER ----------
+
+# ================= CUSTOMERS CRAWLER =================
+
   CustomersCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
+    DependsOn:
+      - AnalyticsDB
+      - GlueCrawlerRole
+
     Properties:
       Name: customers
       Role: !GetAtt GlueCrawlerRole.Arn
       DatabaseName: analytics_db
       TablePrefix: customers_
+
       Targets:
         S3Targets:
           - Path: s3://airport-airline-operations-analytics-platform/gold/customers/
+
+      RecrawlPolicy:
+        RecrawlBehavior: CRAWL_EVERYTHING
+
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DEPRECATE_IN_DATABASE
+
+      Configuration: |
+        {
+          "Version": 1.0,
+          "Grouping": {
+            "TableLevelConfiguration": 3
+          }
+        }
+
+
+# ================= OUTPUTS =================
+
+Outputs:
+
+  DatabaseName:
+    Value: analytics_db
+
+  AirlineCrawlerName:
+    Value: airline
+
+  CustomersCrawlerName:
+    Value: customers
