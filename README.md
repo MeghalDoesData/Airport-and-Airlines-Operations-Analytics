@@ -1,42 +1,50 @@
-# 🚀 AWS Glue CI/CD Pipeline — Automated ETL Deployment with GitHub Actions
+# 🚀 AWS Serverless ETL CI/CD Pipeline — Lambda + Glue + Crawlers (Event Driven)
 
 ## 📌 Overview
 
-This project implements a fully automated **CI/CD pipeline for AWS Glue ETL workflows** using **GitHub Actions**. It automates script deployment, infrastructure provisioning, job execution, and crawler validation using Infrastructure as Code and SDK-based orchestration.
+This project implements a fully automated **serverless ETL pipeline with CI/CD** using:
 
-Technologies used:
+- AWS Lambda (event-driven orchestration)
+- AWS Glue ETL Jobs
+- AWS Glue Crawlers
+- AWS CloudFormation (Infrastructure as Code)
+- GitHub Actions (CI/CD)
+- Amazon S3 Data Lake
+- Amazon Athena
 
-* AWS Glue
-* AWS CloudFormation (IaC)
-* Python boto3 SDK
-* GitHub Actions
-* Amazon S3
-* Glue Crawlers
-* Amazon Athena
-* (Optional) AWS Lambda orchestration
-
-The pipeline is designed to be deterministic, failure-aware, and production-style.
+The pipeline is **event-driven, automated, failure-aware, and production-style**. Everything is deployed via CI/CD — no manual AWS Console setup required.
 
 ---
 
-## 🏗️ End-to-End Flow
+# 🏗️ Final End-to-End Architecture Flow
 
-GitHub Push (main branch)
-→ GitHub Actions CI/CD
-→ Upload Glue Script to S3
-→ Deploy Glue Job (CloudFormation)
-→ Start Glue Job
-→ Wait for SUCCESS
-→ Run Airline Crawler
-→ Validate Crawler
-→ Run Customers Crawler
-→ Validate Crawler
-→ Glue Data Catalog Updated
-→ Athena Tables Ready
+```
+EC2 Ingestion
+    ↓
+S3 RAW Bucket (new file arrives)
+    ↓  [S3 ObjectCreated Event]
+Lambda Trigger (Orchestrator)
+    ↓
+Start Glue Job
+    ↓
+Wait till SUCCEEDED
+    ↓
+Gold Data Written to S3
+    ↓
+Lambda starts Crawlers
+    ↓
+Airline Crawler → SUCCESS
+    ↓
+Customers Crawler → SUCCESS
+    ↓
+Glue Data Catalog Updated
+    ↓
+Athena Tables Ready
+```
 
 ---
 
-## 📁 Repository Structure
+# 📁 Repository Structure (Final)
 
 ```
 .
@@ -44,139 +52,199 @@ GitHub Push (main branch)
 │   └── ci.yml
 
 ├── glue_job.py
-├── template.yaml
-├── crawler-template.yaml
-├── deployment.py
-├── lambda_function.py
+├── lambda.py
+
+├── glue-template.yml
+├── crawler-template.yml
+├── lambda-template.yml
+
 └── README.md
-```
 
 ---
 
-## ⚙️ CI/CD Trigger Rules
+# ⚙️ CI/CD Trigger Rules
 
 Pipeline runs on:
 
-* Push to main branch
-* Pull request to main branch
-* Manual run from Actions tab
+- Push to `develop` branch
+- Manual run from GitHub Actions (workflow_dispatch)
+
+CI/CD deploys **infrastructure + code only**. Execution is event-driven via Lambda after RAW S3 upload.
 
 ---
 
-## 🔄 CI/CD Pipeline Steps
+# 🔄 CI/CD Deployment Steps (GitHub Actions)
 
 1. Checkout repository
 2. Configure AWS credentials
-3. Upload Glue script to S3
-4. Deploy / update Glue Job via CloudFormation
-5. Start Glue Job run
-6. Poll job status until **SUCCEEDED**
-7. Run Airline crawler
-8. Wait and validate Airline crawler
-9. Run Customers crawler
-10. Wait and validate Customers crawler
-11. Mark pipeline success
+3. Upload `glue_job.py` to S3
+4. Zip and upload `lambda.py` to S3
+5. Deploy Lambda stack (CloudFormation)
+6. Deploy Glue Job stack (CloudFormation)
+7. Deploy Crawlers stack (CloudFormation)
+8. Validate stack deployment
+9. Mark CI/CD success
 
-Pipeline stops immediately if any step fails.
+Glue job is **not started from CI** — Lambda controls runtime execution.
 
 ---
 
-## 🧪 Glue Job Execution Logic
+# 🧠 Infrastructure as Code — 3 CloudFormation Stacks
 
-* Glue Job triggered programmatically
-* Job run ID captured
-* Status polled at intervals
-* Pipeline fails on:
+## ✅ Lambda Stack (lambda-template.yml)
 
-  * FAILED
-  * STOPPED
-  * TIMEOUT
-* Prevents silent failures
-* Avoids overlapping runs
+Creates:
+
+- Lambda function (orchestrator)
+- Lambda IAM role
+- S3 RAW bucket trigger
+- Environment variables:
+  - Glue job name
+  - Airline crawler name
+  - Customers crawler name
+
+Purpose:
+
+- Event-driven orchestration
+- Controls full pipeline execution order
 
 ---
 
-## 🗂️ Glue Crawler Strategy
+## ✅ Glue Job Stack (glue-template.yml)
 
-Crawlers run **sequentially**, not in parallel.
+Creates:
+
+- Glue Job
+- Glue IAM role
+- Worker config (G.1X — 10 workers)
+- Script S3 location
+- TempDir auto path
+
+Configured with:
+
+- GlueVersion 4.0
+- Python 3
+- Metrics enabled
+- Continuous logging enabled
+- MaxConcurrentRuns = 1
+- Job bookmarks disabled
+
+Purpose:
+
+- Transform RAW → GOLD
+- Produce customers + airline gold datasets
+
+---
+
+## ✅ Crawler Stack (crawler-template.yml)
+
+Creates:
+
+- Glue Database
+- Airline crawler
+- Customers crawler
+- IAM role
+- Gold S3 scan targets
+
+Targets:
+
+```
+gold/airline/
+gold/customers/
+```
+
+Purpose:
+
+- Schema detection
+- Glue Data Catalog update
+- Athena-ready tables
+
+---
+
+# ⚡ Lambda Orchestration Logic
+
+Lambda is the **pipeline controller**.
+
+Trigger:
+
+- S3 RAW bucket → ObjectCreated event
+
+Execution steps:
+
+1. Receive S3 event
+2. Start Glue job
+3. Capture JobRunId
+4. Poll Glue job status
+5. Wait until SUCCEEDED
+6. Start airline crawler
+7. Wait until READY + SUCCEEDED
+8. Start customers crawler
+9. Wait until READY + SUCCEEDED
+10. Exit success
+
+If any step fails → Lambda raises error → pipeline stops immediately.
+
+---
+
+# 🔁 Glue Job Execution Logic
+
+Glue job performs:
+
+- Raw CSV ingestion
+- Type casting and cleaning
+- Delay & KPI aggregations
+- Lookup joins (airport + carrier)
+- Metric engineering
+- Writes TWO gold outputs:
+
+```
+s3://airport-airline-operations-analytics-platform/gold/customers/
+s3://airport-airline-operations-analytics-platform/gold/airline/
+```
+
+No silver storage — direct gold generation.
+
+---
+
+# 🕷️ Crawler Strategy (Sequential Only)
+
+Crawlers run **strictly sequentially** — never parallel.
 
 Execution order:
 
-1. airline crawler
-2. customers crawler
+1️⃣ airline crawler  
+2️⃣ customers crawler  
 
 For each crawler:
 
-* Start crawler
-* Wait until state = READY
-* Check LastCrawl status
-* Fail pipeline if status ≠ SUCCEEDED
+- Start crawler
+- Poll crawler state
+- Wait until READY
+- Validate LastCrawl status
+- Fail pipeline if status ≠ SUCCEEDED
 
-This prevents catalog conflicts and race conditions.
-
----
-
-## 🗃️ Data Lake Scan Paths
-
-```
-s3://airport-airline-operations-analytics-platform/silver/airline/
-s3://airport-airline-operations-analytics-platform/silver/customers/
-```
-
-Crawlers scan these paths and update Glue Data Catalog tables.
+Prevents catalog race conditions and schema conflicts.
 
 ---
 
-## 🧠 Infrastructure as Code
+# 🪣 S3 Folder Auto-Creation
 
-### CloudFormation Templates
+No folders must exist beforehand.
 
-**template.yaml**
+Auto-created by:
 
-* Creates / updates Glue Job
-* Defines script location
-* Configures IAM role and job parameters
+- Glue write operations
+- Lambda-trigger flow
+- Glue TempDir config
+- Crawler scan targets
 
-**crawler-template.yaml**
-
-* Creates Glue Crawlers
-* Defines S3 targets and databases
-
-Benefits:
-
-* Repeatable deployment
-* Version controlled
-* Environment portable
+Zero manual bucket folder setup required.
 
 ---
 
-### Python SDK Deployment
+# 🔐 Required GitHub Secrets
 
-`deployment.py` uses boto3 to provision:
-
-* Glue jobs
-* Crawlers
-* Supporting resources
-
-Useful for dynamic or conditional deployments.
-
----
-
-## 🧩 Optional Lambda Orchestration
-
-Lambda function can orchestrate:
-
-* Glue job execution
-* Job status wait
-* Sequential crawler runs
-
-Supports event-driven pipelines (for example, S3 upload trigger).
-
----
-
-## 🔐 Security Requirements
-
-GitHub repository secrets required:
+Set in repository secrets:
 
 ```
 AWS_ACCESS_KEY_ID
@@ -184,62 +252,71 @@ AWS_SECRET_ACCESS_KEY
 AWS_DEFAULT_REGION
 ```
 
-IAM user permissions required:
+---
 
-* Glue job control
-* Glue crawler control
-* S3 object write
-* CloudFormation deploy
-* Lambda update (if used)
+# 🔑 Required IAM Permissions (CI/CD User)
 
-Use least-privilege policies in production.
+CI/CD IAM user must allow:
+
+- CloudFormation deploy/update/delete
+- Glue full control
+- Lambda create/update
+- S3 object write
+- iam:PassRole
+- iam:PutRolePolicy
+- iam:AttachRolePolicy
+
+If missing → stack creation fails.
 
 ---
 
-## ❌ Automatic Failure Conditions
+# ❌ Automatic Failure Conditions
 
 Pipeline fails automatically if:
 
-* Glue job fails
-* Glue job stops
-* Glue job times out
-* Any crawler fails
-* Script upload fails
-* CloudFormation deploy fails
-* Lambda update fails
+- Lambda fails
+- Glue job fails / stops / times out
+- Crawler fails
+- CloudFormation stack fails
+- Script upload fails
+- IAM access denied
 
-No partial-success states allowed.
-
----
-
-## 📊 Final Output
-
-After successful run:
-
-* Glue job completed
-* Crawlers completed sequentially
-* Glue Data Catalog updated
-* Athena tables available for query
+No partial success allowed.
 
 ---
 
-## 🎯 Use Cases
+# 📊 Final Output
 
-* Data engineering CI/CD
-* Glue ETL automation
-* Serverless data pipeline deployment
-* Data lake catalog refresh
-* Production-style AWS workflows
+After successful execution:
+
+- Gold datasets generated
+- Glue tables created
+- Data Catalog updated
+- Athena query-ready tables
+- Fully automated event-driven ETL pipeline completed
 
 ---
 
-## ✅ Result
+# 🎯 Use Cases
+
+- Production ETL automation
+- Event-driven data lake pipelines
+- Serverless data engineering demos
+- Glue CI/CD portfolio projects
+- IaC data workflows
+- Interview & presentation demos
+
+---
+
+# ✅ Result
 
 This project demonstrates:
 
-* CI/CD for data pipelines
-* Automated Glue orchestration
-* Infrastructure as Code
-* Sequential execution control
-* Failure-safe deployment
-* Production-grade AWS data engineering pipeline
+- Event-driven ETL orchestration
+- CI/CD for data pipelines
+- Lambda-controlled execution
+- Glue + Crawler automation
+- Infrastructure as Code
+- Sequential execution safety
+- Failure-aware orchestration
+- Production-grade AWS serverless data pipeline
