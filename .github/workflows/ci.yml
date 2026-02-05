@@ -10,6 +10,7 @@ jobs:
 
     env:
       S3_BUCKET: airport-airline-operations-analytics-platform
+
       GLUE_SCRIPT: glue_job.py
       GLUE_SCRIPT_KEY: scripts/glue_job.py
 
@@ -47,17 +48,17 @@ jobs:
       # ==============================
       - name: Upload Glue script
         run: |
-          test -f $GLUE_SCRIPT || exit 1
+          test -f $GLUE_SCRIPT || { echo "glue_job.py missing"; exit 1; }
           aws s3 cp $GLUE_SCRIPT s3://$S3_BUCKET/$GLUE_SCRIPT_KEY
 
 
       # ==============================
-      # Package + Upload Lambda
+      # Package + Upload Lambda (lambda.py)
       # ==============================
       - name: Package Lambda
         run: |
-          test -f lambda_function.py || exit 1
-          zip lambda.zip lambda_function.py
+          test -f lambda.py || { echo "lambda.py missing"; exit 1; }
+          zip lambda.zip lambda.py
           aws s3 cp lambda.zip s3://$S3_BUCKET/$LAMBDA_ZIP_KEY
 
 
@@ -116,6 +117,7 @@ jobs:
             --output text)
 
           echo "RID=$RID" >> $GITHUB_ENV
+          echo "Started Glue Job: $RID"
 
 
       - name: Wait Glue Job
@@ -127,7 +129,7 @@ jobs:
               --query JobRun.JobRunState \
               --output text)
 
-            echo "Glue: $S"
+            echo "Glue status: $S"
 
             [[ "$S" == "SUCCEEDED" ]] && break
             [[ "$S" == "FAILED" || "$S" == "STOPPED" ]] && exit 1
