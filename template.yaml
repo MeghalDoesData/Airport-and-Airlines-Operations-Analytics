@@ -2,6 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Final Glue Job CI/CD Template (Gold Customers + Airline)
 
 Parameters:
+
   ScriptBucket:
     Type: String
 
@@ -17,12 +18,13 @@ Parameters:
 Resources:
 
 # ==============================
-# IAM ROLE
+# IAM ROLE (NO FIXED NAME)
 # ==============================
+
   GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: glue-final-job-role
+
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -35,13 +37,23 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
 
+      Path: /
+
+      Tags:
+        - Key: project
+          Value: airline-analytics
+
 
 # ==============================
 # GLUE JOB
 # ==============================
+
   FinalGlueJob:
     Type: AWS::Glue::Job
+    DependsOn: GlueJobRole
+
     Properties:
+
       Name: !Ref JobName
       Role: !GetAtt GlueJobRole.Arn
 
@@ -56,6 +68,8 @@ Resources:
         --job-language: python
         --enable-continuous-cloudwatch-log: "true"
         --enable-metrics: "true"
+        --enable-spark-ui: "true"
+        --spark-event-logs-path: !Sub s3://${ScriptBucket}/spark-logs/
         --job-bookmark-option: job-bookmark-disable
         --TempDir: !Sub s3://${ScriptBucket}/glue-temp/
 
@@ -65,14 +79,20 @@ Resources:
       WorkerType: G.1X
       NumberOfWorkers: 10
 
-      Timeout: 120
+      Timeout: 180
       MaxRetries: 0
+
+      Tags:
+        project: airline-analytics
+        layer: gold
 
 
 # ==============================
 # OUTPUT
 # ==============================
+
 Outputs:
+
   GlueJobName:
     Description: Name of the Glue job
     Value: !Ref FinalGlueJob
