@@ -1,20 +1,28 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Final Glue Job CI/CD Template
+Description: Final Glue Job CI/CD Template (Gold Customers + Airline)
 
 Parameters:
   ScriptBucket:
     Type: String
+
   ScriptKey:
     Type: String
+
   JobName:
     Type: String
     Default: FinalGlue
-    Description: Name to give the Glue job (avoid spaces)
+    Description: Glue job name (no spaces)
+
 
 Resources:
+
+# ==============================
+# IAM ROLE
+# ==============================
   GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: glue-final-job-role
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -22,32 +30,49 @@ Resources:
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
+
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
 
+
+# ==============================
+# GLUE JOB
+# ==============================
   FinalGlueJob:
     Type: AWS::Glue::Job
     Properties:
       Name: !Ref JobName
       Role: !GetAtt GlueJobRole.Arn
+
       GlueVersion: "4.0"
+
       Command:
         Name: glueetl
         PythonVersion: "3"
         ScriptLocation: !Sub s3://${ScriptBucket}/${ScriptKey}
+
       DefaultArguments:
         --job-language: python
         --enable-continuous-cloudwatch-log: "true"
         --enable-metrics: "true"
-      WorkerType: G.1X
-      NumberOfWorkers: 5
-      Timeout: 2880
-      MaxRetries: 1
+        --job-bookmark-option: job-bookmark-disable
+        --TempDir: !Sub s3://${ScriptBucket}/glue-temp/
 
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+
+      WorkerType: G.1X
+      NumberOfWorkers: 10
+
+      Timeout: 120
+      MaxRetries: 0
+
+
+# ==============================
+# OUTPUT
+# ==============================
 Outputs:
   GlueJobName:
     Description: Name of the Glue job
     Value: !Ref FinalGlueJob
-    Export:
-      Name: !Sub "${AWS::StackName}-GlueJobName"
