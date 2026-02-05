@@ -1,9 +1,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Lambda → Glue → Crawlers
+Description: Lambda to trigger Glue job and crawlers
 
 Parameters:
-  ScriptBucket: {Type: String}
-  LambdaKey: {Type: String}
+  LambdaName:
+    Type: String
+
+  CodeBucket:
+    Type: String
+
+  CodeKey:
+    Type: String
 
 Resources:
 
@@ -22,7 +28,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
       Policies:
-        - PolicyName: GlueRunPolicy
+        - PolicyName: GlueControlPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -30,22 +36,24 @@ Resources:
                 Action:
                   - glue:StartJobRun
                   - glue:GetJobRun
-                  - glue:StartCrawler
                   - glue:GetCrawler
+                  - glue:StartCrawler
                 Resource: "*"
 
   TriggerLambda:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Ref LambdaName
       Runtime: python3.9
       Handler: lambda.lambda_handler
       Timeout: 900
+      MemorySize: 256
       Role: !GetAtt LambdaRole.Arn
 
       Code:
-        S3Bucket: !Ref ScriptBucket
-        S3Key: !Ref LambdaKey
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
 
-      Environment:
-        Variables:
-          GLUE_JOB: FinalGlue
+Outputs:
+  LambdaArn:
+    Value: !GetAtt TriggerLambda.Arn
