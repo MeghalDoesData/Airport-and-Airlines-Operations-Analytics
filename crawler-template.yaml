@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Glue Crawlers Stack (Silver Layer)
+Description: Glue Crawlers Stack (Gold Layer)
 
 Resources:
 
@@ -39,7 +39,7 @@ Resources:
       TablePrefix: airline_
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/gold/airline_airport_operational_health/
+          - Path: s3://airport-airline-operations-analytics-platform/gold/airline/
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DEPRECATE_IN_DATABASE
@@ -56,7 +56,7 @@ Resources:
       TablePrefix: customers_
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/silver/customers/
+          - Path: s3://airport-airline-operations-analytics-platform/gold/customers/
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DEPRECATE_IN_DATABASE
