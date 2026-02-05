@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Lambda to trigger Glue job and crawlers
+Description: Lambda for Glue Trigger (SAFE VERSION)
 
 Parameters:
   LambdaName:
@@ -11,8 +11,12 @@ Parameters:
   CodeKey:
     Type: String
 
+
 Resources:
 
+# =========================
+# IAM ROLE (no fixed name)
+# =========================
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -40,12 +44,16 @@ Resources:
                   - glue:StartCrawler
                 Resource: "*"
 
-  TriggerLambda:
+
+# =========================
+# LAMBDA FUNCTION
+# =========================
+  GlueTriggerLambda:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Ref LambdaName
       Runtime: python3.9
-      Handler: lambda.lambda_handler
+      Handler: lambda.lambda_handler   # ← file = lambda.py
       Timeout: 900
       MemorySize: 256
       Role: !GetAtt LambdaRole.Arn
@@ -54,6 +62,7 @@ Resources:
         S3Bucket: !Ref CodeBucket
         S3Key: !Ref CodeKey
 
+
 Outputs:
   LambdaArn:
-    Value: !GetAtt TriggerLambda.Arn
+    Value: !GetAtt GlueTriggerLambda.Arn
