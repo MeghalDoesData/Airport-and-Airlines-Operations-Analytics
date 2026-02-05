@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Description: Glue Job Final
 
 Parameters:
   ScriptBucket:
@@ -8,12 +9,12 @@ Parameters:
   JobName:
     Type: String
 
+
 Resources:
 
-  GlueRole:
+  GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: glue-cicd-role
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -21,18 +22,35 @@ Resources:
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
+
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
 
-  GlueJob:
+
+  GlueTempFolder:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+
+
+  FinalGlueJob:
     Type: AWS::Glue::Job
     Properties:
       Name: !Ref JobName
-      Role: !GetAtt GlueRole.Arn
+      Role: !GetAtt GlueJobRole.Arn
+
+      GlueVersion: "4.0"
+
       Command:
         Name: glueetl
+        PythonVersion: "3"
         ScriptLocation: !Sub s3://${ScriptBucket}/${ScriptKey}
-        PythonVersion: 3
-      GlueVersion: "4.0"
+
+      DefaultArguments:
+        --job-language: python
+        --TempDir: !Sub s3://${ScriptBucket}/glue-temp/
+
+      WorkerType: G.1X
+      NumberOfWorkers: 10
+      Timeout: 120
       MaxRetries: 0
-      Timeout: 60

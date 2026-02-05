@@ -1,37 +1,50 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Gold Crawlers Stack
+
 
 Resources:
+
+  AnalyticsDB:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: analytics_db
+
 
   CrawlerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: glue-crawler-role
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
+
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+
 
   AirlineCrawler:
     Type: AWS::Glue::Crawler
     Properties:
       Name: airline
       Role: !GetAtt CrawlerRole.Arn
-      DatabaseName: airline
+      DatabaseName: analytics_db
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/silver/airline/
+          - Path: s3://airport-airline-operations-analytics-platform/gold/airline/
+
 
   CustomersCrawler:
     Type: AWS::Glue::Crawler
     Properties:
       Name: customers
       Role: !GetAtt CrawlerRole.Arn
-      DatabaseName: customers
+      DatabaseName: analytics_db
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/silver/customers/
+          - Path: s3://airport-airline-operations-analytics-platform/gold/customers/
