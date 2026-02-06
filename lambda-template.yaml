@@ -1,17 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Lambda Trigger Stack (Stable)
+Description: Lambda Trigger Stack
 
 Parameters:
   LambdaName:
     Type: String
+    Description: "Lambda function name"
 
   CodeBucket:
     Type: String
-    Description: Existing S3 bucket with lambda zip
+    Description: "Existing S3 bucket containing lambda zip"
 
   CodeKey:
     Type: String
-    Description: Existing lambda zip key
+    Description: "Lambda zip key e.g. lambda/raw_lambda.zip"
 
 Resources:
   LambdaRole:
