@@ -8,6 +8,9 @@ Parameters:
   ScriptKey:
     Type: String
 
+  TempBucket:
+    Type: String
+
   JobName:
     Type: String
     Default: FinalGlue
@@ -17,7 +20,6 @@ Resources:
   GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub glue-job-role-${JobName}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -28,10 +30,6 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
-
-  GlueTempBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
 
   GlueJob:
     Type: AWS::Glue::Job
@@ -48,7 +46,7 @@ Resources:
       DefaultArguments:
         --job-language: python
         --enable-metrics: "true"
-        --TempDir: !Sub s3://${GlueTempBucket}/temp/
+        --TempDir: !Sub s3://${TempBucket}/glue-temp/
 
       WorkerType: G.1X
       NumberOfWorkers: 10
