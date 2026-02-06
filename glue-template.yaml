@@ -1,13 +1,19 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Glue Job Stack (Final)
+Description: Glue Job Stack (Stable)
 
 Parameters:
   ScriptBucket:
     Type: String
+    Description: Existing S3 bucket where glue script is present
+
   ScriptKey:
     Type: String
+    Description: Existing glue script key (example: scripts/glue_job.py)
+
   TempBucket:
     Type: String
+    Description: Existing S3 bucket for Glue TempDir
+
   JobName:
     Type: String
     Default: FinalGlue
@@ -39,13 +45,12 @@ Resources:
         ScriptLocation: !Sub s3://${ScriptBucket}/${ScriptKey}
       DefaultArguments:
         --job-language: python
-        --enable-metrics: "true"
         --TempDir: !Sub s3://${TempBucket}/glue-temp/
       WorkerType: G.1X
-      NumberOfWorkers: 10
-      Timeout: 120
+      NumberOfWorkers: 2
+      Timeout: 60
       MaxRetries: 0
 
 Outputs:
-  JobName:
+  GlueJobName:
     Value: !Ref GlueJob
