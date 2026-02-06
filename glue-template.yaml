@@ -1,18 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Glue Job Stack (Stable)
+Description: Glue Job Stack
 
 Parameters:
   ScriptBucket:
     Type: String
-    Description: Existing S3 bucket where glue script is present
+    Description: "Existing S3 bucket where glue script is present"
 
   ScriptKey:
     Type: String
-    Description: Existing glue script key (example: scripts/glue_job.py)
+    Description: "Existing glue script key e.g. scripts/glue_job.py"
 
   TempBucket:
     Type: String
-    Description: Existing S3 bucket for Glue TempDir
+    Description: "Existing S3 bucket for Glue TempDir"
 
   JobName:
     Type: String
