@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Glue Crawlers Stack
+Description: Glue Crawlers Stack - Final
 
 Parameters:
   DataBucket:
     Type: String
-    Description: "Existing S3 bucket with gold data"
+    Default: airport-airline-operations-analytics-platform
 
 Resources:
   AnalyticsDB:
