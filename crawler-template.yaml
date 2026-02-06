@@ -1,7 +1,16 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Gold Crawlers Stack
 
+Parameters:
+  DataBucket:
+    Type: String
+
 Resources:
+
+  GoldBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataBucket
 
   AnalyticsDB:
     Type: AWS::Glue::Database
@@ -13,6 +22,7 @@ Resources:
   CrawlerRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: glue-crawler-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -20,29 +30,28 @@ Resources:
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
-
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
 
   AirlineCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
+    DependsOn: GoldBucket
     Properties:
       Name: airline
       Role: !GetAtt CrawlerRole.Arn
       DatabaseName: analytics_db
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/gold/airline/
+          - Path: !Sub s3://${DataBucket}/gold/airline/
 
   CustomersCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: AnalyticsDB
+    DependsOn: GoldBucket
     Properties:
       Name: customers
       Role: !GetAtt CrawlerRole.Arn
       DatabaseName: analytics_db
       Targets:
         S3Targets:
-          - Path: s3://airport-airline-operations-analytics-platform/gold/customers/
+          - Path: !Sub s3://${DataBucket}/gold/customers/
