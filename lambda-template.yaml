@@ -1,13 +1,17 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Lambda to trigger Glue / Crawlers
+Description: Lambda Trigger Stack (Stable)
 
 Parameters:
   LambdaName:
     Type: String
+
   CodeBucket:
     Type: String
+    Description: Existing S3 bucket with lambda zip
+
   CodeKey:
     Type: String
+    Description: Existing lambda zip key
 
 Resources:
   LambdaRole:
@@ -42,9 +46,9 @@ Resources:
       FunctionName: !Ref LambdaName
       Runtime: python3.9
       Handler: raw_lambda.lambda_handler
+      Role: !GetAtt LambdaRole.Arn
       Timeout: 900
       MemorySize: 256
-      Role: !GetAtt LambdaRole.Arn
       Code:
         S3Bucket: !Ref CodeBucket
         S3Key: !Ref CodeKey
