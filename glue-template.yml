@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Glue Job Final
+
+Parameters:
+  ScriptBucket:
+    Type: String
+  ScriptKey:
+    Type: String
+  JobName:
+    Type: String
+
+
+Resources:
+
+  GlueJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+
+  GlueTempFolder:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+
+
+  FinalGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Ref JobName
+      Role: !GetAtt GlueJobRole.Arn
+
+      GlueVersion: "4.0"
+
+      Command:
+        Name: glueetl
+        PythonVersion: "3"
+        ScriptLocation: !Sub s3://${ScriptBucket}/${ScriptKey}
+
+      DefaultArguments:
+        --job-language: python
+        --TempDir: !Sub s3://${ScriptBucket}/glue-temp/
+
+      WorkerType: G.1X
+      NumberOfWorkers: 10
+      Timeout: 120
+      MaxRetries: 0
