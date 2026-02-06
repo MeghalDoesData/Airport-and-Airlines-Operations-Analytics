@@ -17,6 +17,7 @@ Resources:
   GlueJobRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub glue-job-role-${JobName}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -24,12 +25,11 @@ Resources:
             Principal:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
-
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
 
-  GlueTempBucketFolder:
+  GlueTempBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
 
@@ -48,7 +48,7 @@ Resources:
       DefaultArguments:
         --job-language: python
         --enable-metrics: "true"
-        --TempDir: !Sub s3://${ScriptBucket}/glue-temp/
+        --TempDir: !Sub s3://${GlueTempBucket}/temp/
 
       WorkerType: G.1X
       NumberOfWorkers: 10
