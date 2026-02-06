@@ -7,11 +7,6 @@ Parameters:
 
 Resources:
 
-  GoldBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref DataBucket
-
   AnalyticsDB:
     Type: AWS::Glue::Database
     Properties:
@@ -22,7 +17,6 @@ Resources:
   CrawlerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: glue-crawler-role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -36,7 +30,6 @@ Resources:
 
   AirlineCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: GoldBucket
     Properties:
       Name: airline
       Role: !GetAtt CrawlerRole.Arn
@@ -47,7 +40,6 @@ Resources:
 
   CustomersCrawler:
     Type: AWS::Glue::Crawler
-    DependsOn: GoldBucket
     Properties:
       Name: customers
       Role: !GetAtt CrawlerRole.Arn
